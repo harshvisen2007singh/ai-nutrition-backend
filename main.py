@@ -87,7 +87,7 @@ async def analyze_lab(file: UploadFile = File(...)):
     contents.insert(0, prompt)
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3.8-flash",
         contents=contents
     )
     return {"analysis": response.text}
