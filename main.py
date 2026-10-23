@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from google import genai
 from google.genai import types
 
@@ -22,6 +22,7 @@ client = genai.Client(api_key=api_key) if api_key else None
 
 
 class BiometricsInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")  # Ignores extra fields from frontend without throwing 422 error
     age: float
     gender: str
     height: float
@@ -48,7 +49,7 @@ async def analyze_lab_report(file: UploadFile = File(...)):
         # Determine MIME type
         mime_type = file.content_type
         if not mime_type or mime_type == "application/octet-stream":
-            filename = file.filename.lower()
+            filename = file.filename.lower() if file.filename else ""
             if filename.endswith(".pdf"):
                 mime_type = "application/pdf"
             elif filename.endswith((".jpg", ".jpeg")):
@@ -81,7 +82,7 @@ async def analyze_lab_report(file: UploadFile = File(...)):
         """
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash-lite",
             contents=[
                 types.Part.from_bytes(data=contents, mime_type=mime_type),
                 prompt,
@@ -116,6 +117,7 @@ async def generate_diet_plan(data: BiometricsInput):
             "light": 1.375,
             "moderate": 1.55,
             "active": 1.725,
+            "extra": 1.9,
         }
         tdee = bmr * multipliers.get(data.activity.lower(), 1.55)
 
@@ -132,7 +134,7 @@ async def generate_diet_plan(data: BiometricsInput):
         """
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.8-flash",
             contents=prompt,
         )
 
