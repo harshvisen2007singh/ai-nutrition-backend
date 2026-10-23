@@ -4,12 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import google.generativeai as genai
 
-# Configure Gemini API Key from environment variables
-GENAI_API_KEY = os.getenv("GEMINI_API_KEY")
+# Configure Gemini API Key
+GENAI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if GENAI_API_KEY:
     genai.configure(api_key=GENAI_API_KEY)
 
-app = FastAPI(title="AI Personalised Nutrition Suite Backend")
+app = FastAPI(title="AI Personalised Nutrition Suite API")
 
 # Enable CORS for Netlify Frontend
 app.add_middleware(
@@ -29,7 +29,7 @@ class BiometricsInput(BaseModel):
 
 @app.get("/")
 def read_root():
-    return {"status": "ok", "message": "AI Nutrition Suite API is live!"}
+    return {"status": "ok", "message": "Backend API is live!"}
 
 @app.post("/analyze_lab_report")
 @app.post("/analyze-report")
@@ -37,7 +37,6 @@ async def analyze_lab_report(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         
-        # Determine media type dynamically for images & PDFs
         mime_type = file.content_type
         if not mime_type or mime_type == "application/octet-stream":
             filename = file.filename.lower()
@@ -55,27 +54,26 @@ async def analyze_lab_report(file: UploadFile = File(...)):
             "data": contents
         }
 
-        # Comprehensive Medical & Deficiency Extraction Prompt
         prompt = """
-        You are an expert clinical nutrition AI assistant. Perform an in-depth, structured analysis of the attached path lab blood report.
+        You are an expert clinical nutrition AI assistant. Perform a detailed analysis of the attached path lab report.
 
-        Please render your analysis in clear Markdown format using the following structure:
+        Render your response in clear Markdown format:
 
         ### 🩺 1. Extracted Lab Parameters & Biomarkers
-        - Create a list/table of all key tested parameters detected in the document (e.g., Hemoglobin, RBC, Vitamin D3, Vitamin B12, TSH/Thyroid, Fasting Blood Glucose, Lipid Profile, Liver/Kidney Markers).
-        - Specify the patient's observed test value vs standard reference ranges.
+        - List all tested parameters detected (e.g., Hemoglobin, Vitamin D3, B12, TSH, Glucose, Lipid Profile).
+        - State patient observed values vs reference ranges.
 
         ### ⚠️ 2. Identified Deficiencies & Abnormal Findings
-        - Clearly highlight any values that are Low, High, or Borderline.
-        - Explain what each deficiency or abnormality indicates in simple, actionable terms (e.g., "Low Vitamin D3 impairs bone density and immunity").
+        - Highlight values that are Low, High, or Borderline.
+        - Explain what each abnormality means in simple terms.
 
         ### 🥗 3. Targeted Nutritional & Dietary Corrections
-        - **Foods to Consume:** List specific whole foods, vegetables, and nutrient sources that directly help restore deficient markers.
-        - **Foods to Avoid:** List dietary items to restrict based on elevated/abnormal values (e.g., high sodium, refined sugars, saturated fats).
+        - **Foods to Consume:** Whole foods to help restore deficient levels.
+        - **Foods to Avoid:** Items to restrict based on elevated markers.
 
         ### 💡 4. Lifestyle & Clinical Recommendations
-        - Provide actionable habits (hydration, sunlight exposure, physical activity, sleep hygiene).
-        - State clearly when to consult a medical specialist for potential therapeutic supplementation.
+        - Actionable lifestyle tips (hydration, exercise, sleep, sunlight).
+        - Direct advice on when to consult a physician for therapeutic supplements.
         """
 
         model = genai.GenerativeModel('gemini-2.5-flash')
@@ -90,7 +88,6 @@ async def analyze_lab_report(file: UploadFile = File(...)):
 @app.post("/generate-plan")
 async def generate_diet_plan(data: BiometricsInput):
     try:
-        # Mifflin-St Jeor Equation
         bmr = (10 * data.weight) + (6.25 * data.height) - (5 * data.age) + (5 if data.gender.lower() == "male" else -161)
         multipliers = {"sedentary": 1.2, "light": 1.375, "moderate": 1.55, "active": 1.725}
         tdee = bmr * multipliers.get(data.activity.lower(), 1.55)
