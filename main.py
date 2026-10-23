@@ -72,8 +72,8 @@ async def analyze_lab_report(file: UploadFile = File(...)):
         - Explain what each abnormality means in simple, patient-friendly terms.
 
         ### 👨‍⚕️ 3. Recommended Medical Specialist Referral
-        - Based strictly on the abnormal findings, explicitly name the specific medical specialist(s) the patient should consult (e.g., **Endocrinologist** for Thyroid/Glucose issues, **Hematologist** for severe Anemia, **Cardiologist** for Lipid Profile, or **General Physician** for routine deficiencies).
-        - Provide a clear, comforting explanation of *why* consulting this specialist is recommended so the patient does not feel confused or anxious.
+        - Based strictly on the abnormal findings, explicitly name the specific medical specialist(s) the patient should consult (e.g., Endocrinologist, Hematologist, Cardiologist, or General Physician).
+        - Provide a clear, comforting explanation of why consulting this specialist is recommended.
 
         ### 🥗 4. Targeted Nutritional & Dietary Corrections
         - **Foods to Consume:** Whole foods to help restore deficient levels.
@@ -82,10 +82,16 @@ async def analyze_lab_report(file: UploadFile = File(...)):
         ### 💡 5. Lifestyle & Clinical Recommendations
         - Actionable lifestyle tips (hydration, exercise, sleep, sunlight).
         - Direct advice on when to consult a physician for therapeutic supplements.
+
+        ### 🔗 6. Clinical & Research References
+        Include clickable direct Markdown web links for medical verification:
+        - [World Health Organization (WHO) Guidelines](https://www.who.int/health-topics/nutrition)
+        - [ICMR - National Institute of Nutrition (NIN) Dietary Guidelines](https://www.nin.res.in/)
+        - [NIH National Library of Medicine (PubMed)](https://pubmed.ncbi.nlm.nih.gov/)
         """
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash-lite",
+            model="gemini-2.5-flash",
             contents=[
                 types.Part.from_bytes(data=contents, mime_type=mime_type),
                 prompt,
@@ -118,7 +124,7 @@ async def generate_diet_plan(data: BiometricsInput):
         with Height: {data.height} cm, Weight: {data.weight} kg, BMR: {round(bmr)} kcal, and TDEE: {round(tdee)} kcal.
 
         CRITICAL DIETARY CONSTRAINTS:
-        - **Diet Type:** STRICTLY adhere to a **{data.diet_type}** diet. (Do not suggest non-vegetarian foods if Vegetarian/Vegan is chosen).
+        - **Diet Type:** STRICTLY adhere to a **{data.diet_type}** diet.
         - **Allergies & Sensitivities:** STRICTLY EXCLUDE any foods containing: **{data.allergies}**.
 
         Structure in clear Markdown:
@@ -127,14 +133,21 @@ async def generate_diet_plan(data: BiometricsInput):
         - **Lunch**
         - **Snack**
         - **Dinner**
+        Include estimated calories and macro breakdowns (Protein, Carbs, Fats) for each meal.
 
         ### ⚠️ Allergy & Safety Verification
         - Explicitly confirm that the meal plan excludes **{data.allergies}** and strictly follows **{data.diet_type}** guidelines.
-        Include estimated calories and macro breakdowns (Protein, Carbs, Fats) for each meal.
+
+        ### 📚 Scientific References & Health Guidelines
+        Provide direct, clickable Markdown hyperlinked sources for the patient to learn more:
+        - [WHO Healthy Diet Guidelines](https://www.who.int/news-room/fact-sheets/detail/healthy-diet)
+        - [ICMR-NIN Dietary Guidelines for Indians](https://www.nin.res.in/dietaryguidelines/index.html)
+        - [Harvard T.H. Chan School of Public Health - The Nutrition Source](https://www.hsph.harvard.edu/nutritionsource/)
+        - [USDA FoodData Central](https://fdc.nal.usda.gov/)
         """
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash-lite",
+            model="gemini-2.5-flash",
             contents=prompt,
         )
 
