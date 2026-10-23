@@ -2,12 +2,8 @@ import os
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import google.generativeai as genai
-
-# Configure Gemini API Key
-GENAI_API_KEY = os.environ.get("GEMINI_API_KEY")
-if GENAI_API_KEY:
-    genai.configure(api_key=GENAI_API_KEY)
+from google import genai
+from google.genai import types
 
 app = FastAPI(title="AI Personalised Nutrition Suite API")
 
@@ -20,6 +16,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize GenAI Client using GEMINI_API_KEY environment variable
+api_key = os.environ.get("GEMINI_API_KEY")
+client = genai.Client(api_key=api_key) if api_key else None
+
+
 class BiometricsInput(BaseModel):
     age: float
     gender: str
@@ -27,16 +28,24 @@ class BiometricsInput(BaseModel):
     weight: float
     activity: str
 
+
 @app.get("/")
 def read_root():
     return {"status": "ok", "message": "Backend API is live!"}
 
+
 @app.post("/analyze_lab_report")
 @app.post("/analyze-report")
 async def analyze_lab_report(file: UploadFile = File(...)):
+    if not client:
+        raise HTTPException(
+            status_code=500, detail="GEMINI_API_KEY environment variable is not set on Render."
+        )
+
     try:
         contents = await file.read()
-        
+
+        # Determine MIME type
         mime_type = file.content_type
         if not mime_type or mime_type == "application/octet-stream":
             filename = file.filename.lower()
@@ -49,47 +58,65 @@ async def analyze_lab_report(file: UploadFile = File(...)):
             else:
                 mime_type = "image/jpeg"
 
-        file_part = {
-            "mime_type": mime_type,
-            "data": contents
-        }
-
         prompt = """
-        You are an expert clinical nutrition AI assistant. Perform a detailed analysis of the attached path lab report.
+        You are an expert clinical nutrition AI assistant. Perform a comprehensive analysis of the attached path lab blood report.
 
-        Render your response in clear Markdown format:
+        Please render your response in clear, beautifully formatted Markdown with the following sections:
 
         ### 🩺 1. Extracted Lab Parameters & Biomarkers
-        - List all tested parameters detected (e.g., Hemoglobin, Vitamin D3, B12, TSH, Glucose, Lipid Profile).
-        - State patient observed values vs reference ranges.
+        - List all key tested parameters detected in the document (e.g., Hemoglobin, Vitamin D3, Vitamin B12, TSH/Thyroid, Blood Glucose, Lipid Profile, Liver/Kidney Markers).
+        - Specify the patient's observed test value vs standard reference ranges.
 
         ### ⚠️ 2. Identified Deficiencies & Abnormal Findings
-        - Highlight values that are Low, High, or Borderline.
-        - Explain what each abnormality means in simple terms.
+        - Clearly highlight any values that are Low, High, or Borderline.
+        - Explain what each deficiency or abnormality indicates in simple, actionable terms.
 
-        ### 🥗 3. Targeted Nutritional & Dietary Corrections
-        - **Foods to Consume:** Whole foods to help restore deficient levels.
-        - **Foods to Avoid:** Items to restrict based on elevated markers.
+        ### 🥗 3. Targeted Dietary & Nutritional Corrections
+        - **Foods to Consume:** List specific whole foods, vegetables, and nutrient sources that directly help restore deficient markers.
+        - **Foods to Avoid:** List dietary items to restrict based on elevated/abnormal values.
 
         ### 💡 4. Lifestyle & Clinical Recommendations
-        - Actionable lifestyle tips (hydration, exercise, sleep, sunlight).
-        - Direct advice on when to consult a physician for therapeutic supplements.
+        - Provide actionable habits (hydration, sunlight exposure, physical activity, sleep hygiene).
+        - State clearly when to consult a medical specialist for potential therapeutic supplementation.
         """
 
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        response = model.generate_content([prompt, file_part])
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=contents, mime_type=mime_type),
+                prompt,
+            ],
+        )
 
         return {"analysis": response.text}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lab report analysis failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Lab report analysis failed: {str(e)}"
+        )
+
 
 @app.post("/generate_diet_plan")
 @app.post("/generate-plan")
 async def generate_diet_plan(data: BiometricsInput):
+    if not client:
+        raise HTTPException(
+            status_code=500, detail="GEMINI_API_KEY environment variable is not set on Render."
+        )
+
     try:
-        bmr = (10 * data.weight) + (6.25 * data.height) - (5 * data.age) + (5 if data.gender.lower() == "male" else -161)
-        multipliers = {"sedentary": 1.2, "light": 1.375, "moderate": 1.55, "active": 1.725}
+        bmr = (
+            (10 * data.weight)
+            + (6.25 * data.height)
+            - (5 * data.age)
+            + (5 if data.gender.lower() == "male" else -161)
+        )
+        multipliers = {
+            "sedentary": 1.2,
+            "light": 1.375,
+            "moderate": 1.55,
+            "active": 1.725,
+        }
         tdee = bmr * multipliers.get(data.activity.lower(), 1.55)
 
         prompt = f"""
@@ -104,10 +131,14 @@ async def generate_diet_plan(data: BiometricsInput):
         Include estimated calories and macro breakdowns (Protein, Carbs, Fats) for each meal.
         """
 
-        model = genai.GenerativeModel('gemini-3.5-flash-lite')
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
 
         return {"plan": response.text, "bmr": round(bmr), "tdee": round(tdee)}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Diet plan generation failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Diet plan generation failed: {str(e)}"
+        )
