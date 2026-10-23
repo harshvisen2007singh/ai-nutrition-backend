@@ -29,6 +29,7 @@ class BiometricsInput(BaseModel):
     diet_type: str = "Vegetarian"
     allergies: str = "None"
     disease: str = "None / Healthy"
+    dosha: str = "Tridosha Balance (General)"
 
 
 @app.get("/")
@@ -59,39 +60,36 @@ async def analyze_lab_report(file: UploadFile = File(...)):
                 mime_type = "image/jpeg"
 
         prompt = """
-        You are an expert clinical nutrition AI assistant. Perform a detailed analysis of the attached path lab report.
+        You are an expert integrative clinical nutritionist proficient in Allopathy, Homeopathy, and Ayurveda. Perform a detailed multimodal analysis of the attached path lab report.
 
         Render your response in clear Markdown format:
 
-        ### 🩺 1. Extracted Lab Parameters & Biomarkers
-        - List all tested parameters detected (e.g., Hemoglobin, Vitamin D3, B12, TSH, Glucose, Lipid Profile).
-        - State patient observed values vs reference ranges.
+        ### 🩺 1. Extracted Lab Parameters & Biomarkers (Allopathic View)
+        - List tested parameters detected (e.g., Hemoglobin, Vitamin D3, B12, TSH, Glucose, Lipid Profile).
+        - State patient observed values vs standard reference ranges.
 
         ### ⚠️ 2. Identified Deficiencies & Abnormal Findings
         - Highlight values that are Low, High, or Borderline.
-        - Explain what each abnormality means in simple, patient-friendly terms.
+        - Explain clinical significance in simple terms.
 
-        ### 👨‍⚕️ 3. Recommended Medical Specialist Referral
-        - Based strictly on the abnormal findings, explicitly name the specific medical specialist(s) the patient should consult (e.g., Endocrinologist, Hematologist, Cardiologist, or General Physician).
-        - Provide a clear, comforting explanation of why consulting this specialist is recommended.
+        ### 👨‍⚕️ 3. Integrative Medical Specialist Referral
+        - Explicitly name recommended specialists across treatment streams (e.g., Allopathic Specialist like Endocrinologist/Cardiologist, Homeopathic Practitioner, or Ayurvedic Vaidya).
 
-        ### 🥗 4. Targeted Nutritional & Dietary Corrections
-        - **Foods to Consume:** Whole foods to help restore deficient levels.
-        - **Foods to Avoid:** Items to restrict based on elevated markers.
+        ### 🌿 4. Tridosha & Functional Health Correlation
+        - Correlate detected deficiencies with Ayurvedic Tridosha imbalances (Vata: dry/nervous, Pitta: metabolic/inflammatory, Kapha: sluggish/mucus).
 
-        ### 💡 5. Lifestyle & Clinical Recommendations
-        - Actionable lifestyle tips (hydration, exercise, sleep, sunlight).
-        - Direct advice on when to consult a physician for therapeutic supplements.
+        ### 🥗 5. Targeted Precision Diet Plan
+        - **Foods to Consume:** Whole foods restoring biomarker levels & balancing Doshas.
+        - **Foods to Avoid:** Items aggravating current clinical markers or Doshas.
 
         ### 🔗 6. Clinical & Research References
-        Include clickable direct Markdown web links for medical verification:
         - [World Health Organization (WHO) Guidelines](https://www.who.int/health-topics/nutrition)
-        - [ICMR - National Institute of Nutrition (NIN) Dietary Guidelines](https://www.nin.res.in/)
-        - [NIH National Library of Medicine (PubMed)](https://pubmed.ncbi.nlm.nih.gov/)
+        - [ICMR - National Institute of Nutrition (NIN)](https://www.nin.res.in/)
+        - [AYUSH Ministry - Ayurvedic Dietary Principles](https://www.ayush.gov.in/)
         """
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash-lite",
             contents=[
                 types.Part.from_bytes(data=contents, mime_type=mime_type),
                 prompt,
@@ -120,42 +118,39 @@ async def generate_diet_plan(data: BiometricsInput):
         tdee = bmr * multipliers.get(data.activity.lower(), 1.55)
 
         prompt = f"""
-        Act as a professional clinical nutritionist. Generate a 1-day sample meal plan for a {data.age}-year-old {data.gender} 
-        with Height: {data.height} cm, Weight: {data.weight} kg, BMR: {round(bmr)} kcal, and TDEE: {round(tdee)} kcal.
+        Act as an integrative clinical nutritionist expert in Modern Allopathic Nutrition, Homeopathy, and Ayurvedic Tridosha Balance.
+        Generate a 1-day integrative meal plan for a {data.age}-year-old {data.gender} (Height: {data.height} cm, Weight: {data.weight} kg, BMR: {round(bmr)} kcal, TDEE: {round(tdee)} kcal).
 
-        CRITICAL CLINICAL & DIETARY CONSTRAINTS:
-        - **Medical Condition / Disease:** STRICTLY TAILOR FOR **{data.disease}**.
-          * If Diabetes/High Sugar: Emphasize low glycemic index (GI), high-fiber complex carbs.
-          * If Hypertension: Recommend DASH diet guidelines (low sodium < 2000mg/day, potassium-rich).
-          * If Gout/High Uric Acid: Strictly avoid high-purine foods (organ meats, red meat, seafood, spinach/cauliflower excess).
-          * If Thyroid/PCOS: Emphasize selenium, zinc, low inflammatory foods, and hormone balancing nutrition.
-        - **Diet Type:** STRICTLY adhere to a **{data.diet_type}** diet.
-        - **Allergies & Sensitivities:** STRICTLY EXCLUDE any foods containing: **{data.allergies}**.
+        INTEGRATIVE CLINICAL CONSTRAINTS:
+        - **Medical Condition:** Tailor strictly for **{data.disease}**.
+        - **Ayurvedic Prakriti / Dosha Target:** Align with **{data.dosha}**. 
+          * Vata Dominant: Warm, grounding, cooked, nutrient-dense foods with healthy fats.
+          * Pitta Dominant: Cooling, non-acidic, moderate spice, hydrating foods.
+          * Kapha Dominant: Light, warm, pungent/bitter spices, low-oil, low-mucus forming foods.
+        - **Dietary Preference:** STRICTLY **{data.diet_type}**.
+        - **Allergies & Sensitivities:** STRICTLY EXCLUDE **{data.allergies}**.
 
         Structure in clear Markdown:
-        ### 🩺 Therapeutic Meal Plan for {data.disease}
-        **Dietary Pattern:** {data.diet_type} | **Exclusions:** {data.allergies}
+        ### 🧬 Integrative Precision Meal Plan
+        **Condition:** {data.disease} | **Dosha Focus:** {data.dosha} | **Diet:** {data.diet_type}
 
         - **Breakfast**
         - **Lunch**
         - **Snack**
         - **Dinner**
-        Include estimated calories and macro breakdowns (Protein, Carbs, Fats) for each meal.
+        Include calories, macronutrient breakdown, and Ayurvedic therapeutic properties (e.g., Rasa, Virya) for key ingredients.
 
-        ### ⚠️ Medical & Allergy Safety Verification
-        - Explicitly explain how this diet plan actively manages **{data.disease}** (e.g., controlling glycemic load, sodium levels, or purine intake).
-        - Confirm exclusion of **{data.allergies}**.
+        ### 🌿 Homeopathic & Ayurvedic Complementary Notes
+        - Gentle lifestyle, herbal infusion, or Homeopathic bio-chemic cell salt advice complementing the diet.
 
-        ### 📚 Scientific References & Health Guidelines
-        Provide direct, clickable Markdown hyperlinked sources:
+        ### 📚 Scientific & Traditional References
         - [WHO Healthy Diet Guidelines](https://www.who.int/news-room/fact-sheets/detail/healthy-diet)
         - [ICMR-NIN Dietary Guidelines for Indians](https://www.nin.res.in/dietaryguidelines/index.html)
-        - [Harvard T.H. Chan School of Public Health - Nutrition Source](https://www.hsph.harvard.edu/nutritionsource/)
-        - [USDA FoodData Central](https://fdc.nal.usda.gov/)
+        - [Ministry of AYUSH - Traditional Knowledge Digital Library](https://www.ayush.gov.in/)
         """
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash-lite",
             contents=prompt,
         )
 
