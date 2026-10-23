@@ -82,7 +82,7 @@ async def analyze_lab_report(file: UploadFile = File(...)):
         """
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash-lite",
+            model="gemini-3.6-flash",
             contents=[
                 types.Part.from_bytes(data=contents, mime_type=mime_type),
                 prompt,
@@ -134,7 +134,7 @@ async def generate_diet_plan(data: BiometricsInput):
         """
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash-lite",
+            model="gemini-3.6-flash",
             contents=prompt,
         )
 
