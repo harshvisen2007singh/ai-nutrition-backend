@@ -7,22 +7,21 @@ from google.genai import types
 
 app = FastAPI(title="AI Personalised Nutrition Suite API")
 
-# Enable CORS for Netlify Frontend
+# Allow CORS requests from Netlify and local clients
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
-# Initialize GenAI Client using GEMINI_API_KEY environment variable
 api_key = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key) if api_key else None
 
 
 class BiometricsInput(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignores extra fields from frontend without throwing 422 error
+    model_config = ConfigDict(extra="ignore")
     age: float
     gender: str
     height: float
@@ -40,13 +39,11 @@ def read_root():
 async def analyze_lab_report(file: UploadFile = File(...)):
     if not client:
         raise HTTPException(
-            status_code=500, detail="GEMINI_API_KEY environment variable is not set on Render."
+            status_code=500, detail="GEMINI_API_KEY is not configured on Render environment variables."
         )
 
     try:
         contents = await file.read()
-
-        # Determine MIME type
         mime_type = file.content_type
         if not mime_type or mime_type == "application/octet-stream":
             filename = file.filename.lower() if file.filename else ""
@@ -60,29 +57,29 @@ async def analyze_lab_report(file: UploadFile = File(...)):
                 mime_type = "image/jpeg"
 
         prompt = """
-        You are an expert clinical nutrition AI assistant. Perform a comprehensive analysis of the attached path lab blood report.
+        You are an expert clinical nutrition AI assistant. Perform a detailed analysis of the attached path lab report.
 
-        Please render your response in clear, beautifully formatted Markdown with the following sections:
+        Render your response in clear Markdown format:
 
         ### 🩺 1. Extracted Lab Parameters & Biomarkers
-        - List all key tested parameters detected in the document (e.g., Hemoglobin, Vitamin D3, Vitamin B12, TSH/Thyroid, Blood Glucose, Lipid Profile, Liver/Kidney Markers).
-        - Specify the patient's observed test value vs standard reference ranges.
+        - List all tested parameters detected (e.g., Hemoglobin, Vitamin D3, B12, TSH, Glucose, Lipid Profile).
+        - State patient observed values vs reference ranges.
 
         ### ⚠️ 2. Identified Deficiencies & Abnormal Findings
-        - Clearly highlight any values that are Low, High, or Borderline.
-        - Explain what each deficiency or abnormality indicates in simple, actionable terms.
+        - Highlight values that are Low, High, or Borderline.
+        - Explain what each abnormality means in simple terms.
 
-        ### 🥗 3. Targeted Dietary & Nutritional Corrections
-        - **Foods to Consume:** List specific whole foods, vegetables, and nutrient sources that directly help restore deficient markers.
-        - **Foods to Avoid:** List dietary items to restrict based on elevated/abnormal values.
+        ### 🥗 3. Targeted Nutritional & Dietary Corrections
+        - **Foods to Consume:** Whole foods to help restore deficient levels.
+        - **Foods to Avoid:** Items to restrict based on elevated markers.
 
         ### 💡 4. Lifestyle & Clinical Recommendations
-        - Provide actionable habits (hydration, sunlight exposure, physical activity, sleep hygiene).
-        - State clearly when to consult a medical specialist for potential therapeutic supplementation.
+        - Actionable lifestyle tips (hydration, exercise, sleep, sunlight).
+        - Direct advice on when to consult a physician for therapeutic supplements.
         """
 
         response = client.models.generate_content(
-            model="gemini-3.6-flash",
+            model="gemini-2.5-flash",
             contents=[
                 types.Part.from_bytes(data=contents, mime_type=mime_type),
                 prompt,
@@ -93,7 +90,7 @@ async def analyze_lab_report(file: UploadFile = File(...)):
 
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Lab report analysis failed: {str(e)}"
+            status_code=500, detail=f"Analysis engine error: {str(e)}"
         )
 
 
@@ -102,23 +99,12 @@ async def analyze_lab_report(file: UploadFile = File(...)):
 async def generate_diet_plan(data: BiometricsInput):
     if not client:
         raise HTTPException(
-            status_code=500, detail="GEMINI_API_KEY environment variable is not set on Render."
+            status_code=500, detail="GEMINI_API_KEY is not configured on Render environment variables."
         )
 
     try:
-        bmr = (
-            (10 * data.weight)
-            + (6.25 * data.height)
-            - (5 * data.age)
-            + (5 if data.gender.lower() == "male" else -161)
-        )
-        multipliers = {
-            "sedentary": 1.2,
-            "light": 1.375,
-            "moderate": 1.55,
-            "active": 1.725,
-            "extra": 1.9,
-        }
+        bmr = (10 * data.weight) + (6.25 * data.height) - (5 * data.age) + (5 if data.gender.lower() == "male" else -161)
+        multipliers = {"sedentary": 1.2, "light": 1.375, "moderate": 1.55, "active": 1.725, "extra": 1.9}
         tdee = bmr * multipliers.get(data.activity.lower(), 1.55)
 
         prompt = f"""
@@ -134,7 +120,7 @@ async def generate_diet_plan(data: BiometricsInput):
         """
 
         response = client.models.generate_content(
-            model="gemini-3.6-flash",
+            model="gemini-2.5-flash",
             contents=prompt,
         )
 
@@ -142,5 +128,5 @@ async def generate_diet_plan(data: BiometricsInput):
 
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Diet plan generation failed: {str(e)}"
+            status_code=500, detail=f"Diet generation error: {str(e)}"
         )
