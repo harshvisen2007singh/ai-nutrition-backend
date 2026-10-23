@@ -67,19 +67,23 @@ async def analyze_lab_report(file: UploadFile = File(...)):
 
         ### ⚠️ 2. Identified Deficiencies & Abnormal Findings
         - Highlight values that are Low, High, or Borderline.
-        - Explain what each abnormality means in simple terms.
+        - Explain what each abnormality means in simple, patient-friendly terms.
 
-        ### 🥗 3. Targeted Nutritional & Dietary Corrections
+        ### 👨‍⚕️ 3. Recommended Medical Specialist Referral
+        - Based strictly on the abnormal findings, explicitly name the specific medical specialist(s) the patient should consult (e.g., **Endocrinologist** for Thyroid/Glucose issues, **Hematologist** for severe Anemia, **Cardiologist** for Lipid Profile, or **General Physician** for routine deficiencies).
+        - Provide a clear, comforting explanation of *why* consulting this specialist is recommended so the patient does not feel confused or anxious.
+
+        ### 🥗 4. Targeted Nutritional & Dietary Corrections
         - **Foods to Consume:** Whole foods to help restore deficient levels.
         - **Foods to Avoid:** Items to restrict based on elevated markers.
 
-        ### 💡 4. Lifestyle & Clinical Recommendations
+        ### 💡 5. Lifestyle & Clinical Recommendations
         - Actionable lifestyle tips (hydration, exercise, sleep, sunlight).
         - Direct advice on when to consult a physician for therapeutic supplements.
         """
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash-lite",
+            model="gemini-2.5-flash",
             contents=[
                 types.Part.from_bytes(data=contents, mime_type=mime_type),
                 prompt,
@@ -120,11 +124,16 @@ async def generate_diet_plan(data: BiometricsInput):
         """
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash-lite",
+            model="gemini-2.5-flash",
             contents=prompt,
         )
 
         return {"plan": response.text, "bmr": round(bmr), "tdee": round(tdee)}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Diet generation error: {str(e)}"
+        )
 
     except Exception as e:
         raise HTTPException(
