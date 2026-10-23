@@ -7,7 +7,7 @@ from google.genai import types
 
 app = FastAPI(title="AI Personalised Nutrition Suite API")
 
-# Allow CORS requests from Netlify and local clients
+# Allow CORS requests from Netlify and local development clients
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,6 +27,8 @@ class BiometricsInput(BaseModel):
     height: float
     weight: float
     activity: str
+    diet_type: str = "Vegetarian"
+    allergies: str = "None"
 
 
 @app.get("/")
@@ -112,14 +114,22 @@ async def generate_diet_plan(data: BiometricsInput):
         tdee = bmr * multipliers.get(data.activity.lower(), 1.55)
 
         prompt = f"""
-        Act as a professional nutritionist. Generate a 1-day sample meal plan for a {data.age}-year-old {data.gender} 
+        Act as a professional clinical nutritionist. Generate a 1-day sample meal plan for a {data.age}-year-old {data.gender} 
         with Height: {data.height} cm, Weight: {data.weight} kg, BMR: {round(bmr)} kcal, and TDEE: {round(tdee)} kcal.
 
-        Structure in Markdown:
+        CRITICAL DIETARY CONSTRAINTS:
+        - **Diet Type:** STRICTLY adhere to a **{data.diet_type}** diet. (Do not suggest non-vegetarian foods if Vegetarian/Vegan is chosen).
+        - **Allergies & Sensitivities:** STRICTLY EXCLUDE any foods containing: **{data.allergies}**.
+
+        Structure in clear Markdown:
+        ### 🥗 Personalised {data.diet_type} Meal Plan
         - **Breakfast**
         - **Lunch**
         - **Snack**
         - **Dinner**
+
+        ### ⚠️ Allergy & Safety Verification
+        - Explicitly confirm that the meal plan excludes **{data.allergies}** and strictly follows **{data.diet_type}** guidelines.
         Include estimated calories and macro breakdowns (Protein, Carbs, Fats) for each meal.
         """
 
@@ -129,11 +139,6 @@ async def generate_diet_plan(data: BiometricsInput):
         )
 
         return {"plan": response.text, "bmr": round(bmr), "tdee": round(tdee)}
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Diet generation error: {str(e)}"
-        )
 
     except Exception as e:
         raise HTTPException(
