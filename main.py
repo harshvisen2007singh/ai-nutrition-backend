@@ -7,7 +7,6 @@ from google.genai import types
 
 app = FastAPI(title="AI Personalised Nutrition Suite API")
 
-# Allow CORS requests from Netlify and local development clients
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,6 +28,7 @@ class BiometricsInput(BaseModel):
     activity: str
     diet_type: str = "Vegetarian"
     allergies: str = "None"
+    disease: str = "None / Healthy"
 
 
 @app.get("/")
@@ -91,7 +91,7 @@ async def analyze_lab_report(file: UploadFile = File(...)):
         """
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash-lite",
+            model="gemini-2.5-flash",
             contents=[
                 types.Part.from_bytes(data=contents, mime_type=mime_type),
                 prompt,
@@ -123,31 +123,39 @@ async def generate_diet_plan(data: BiometricsInput):
         Act as a professional clinical nutritionist. Generate a 1-day sample meal plan for a {data.age}-year-old {data.gender} 
         with Height: {data.height} cm, Weight: {data.weight} kg, BMR: {round(bmr)} kcal, and TDEE: {round(tdee)} kcal.
 
-        CRITICAL DIETARY CONSTRAINTS:
+        CRITICAL CLINICAL & DIETARY CONSTRAINTS:
+        - **Medical Condition / Disease:** STRICTLY TAILOR FOR **{data.disease}**.
+          * If Diabetes/High Sugar: Emphasize low glycemic index (GI), high-fiber complex carbs.
+          * If Hypertension: Recommend DASH diet guidelines (low sodium < 2000mg/day, potassium-rich).
+          * If Gout/High Uric Acid: Strictly avoid high-purine foods (organ meats, red meat, seafood, spinach/cauliflower excess).
+          * If Thyroid/PCOS: Emphasize selenium, zinc, low inflammatory foods, and hormone balancing nutrition.
         - **Diet Type:** STRICTLY adhere to a **{data.diet_type}** diet.
         - **Allergies & Sensitivities:** STRICTLY EXCLUDE any foods containing: **{data.allergies}**.
 
         Structure in clear Markdown:
-        ### 🥗 Personalised {data.diet_type} Meal Plan
+        ### 🩺 Therapeutic Meal Plan for {data.disease}
+        **Dietary Pattern:** {data.diet_type} | **Exclusions:** {data.allergies}
+
         - **Breakfast**
         - **Lunch**
         - **Snack**
         - **Dinner**
         Include estimated calories and macro breakdowns (Protein, Carbs, Fats) for each meal.
 
-        ### ⚠️ Allergy & Safety Verification
-        - Explicitly confirm that the meal plan excludes **{data.allergies}** and strictly follows **{data.diet_type}** guidelines.
+        ### ⚠️ Medical & Allergy Safety Verification
+        - Explicitly explain how this diet plan actively manages **{data.disease}** (e.g., controlling glycemic load, sodium levels, or purine intake).
+        - Confirm exclusion of **{data.allergies}**.
 
         ### 📚 Scientific References & Health Guidelines
-        Provide direct, clickable Markdown hyperlinked sources for the patient to learn more:
+        Provide direct, clickable Markdown hyperlinked sources:
         - [WHO Healthy Diet Guidelines](https://www.who.int/news-room/fact-sheets/detail/healthy-diet)
         - [ICMR-NIN Dietary Guidelines for Indians](https://www.nin.res.in/dietaryguidelines/index.html)
-        - [Harvard T.H. Chan School of Public Health - The Nutrition Source](https://www.hsph.harvard.edu/nutritionsource/)
+        - [Harvard T.H. Chan School of Public Health - Nutrition Source](https://www.hsph.harvard.edu/nutritionsource/)
         - [USDA FoodData Central](https://fdc.nal.usda.gov/)
         """
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash-lite",
+            model="gemini-2.5-flash",
             contents=prompt,
         )
 
