@@ -28,7 +28,7 @@ class BiometricsInput(BaseModel):
     activity: str
     diet_type: str = "Vegetarian"
     allergies: str = "None"
-    disease: str = "None / General Wellness"  # Can now accept comma-separated multiple diseases
+    disease: str = "None / General Wellness"
     dosha: str = "N/A (Not Applicable / Skip Tridosha)"
 
 
@@ -60,32 +60,32 @@ async def analyze_lab_report(file: UploadFile = File(...)):
                 mime_type = "image/jpeg"
 
         prompt = """
-        You are an expert integrative clinical nutritionist proficient in Allopathy, Homeopathy, and Ayurveda. Perform a detailed multimodal analysis of the attached path lab report.
+        You are an expert integrative clinical oncologist and clinical nutritionist. Perform a detailed multimodal analysis of the attached path lab report.
 
         Render your response in clear Markdown format:
 
-        ### 🩺 1. Extracted Lab Parameters & Biomarkers (Allopathic View)
-        - List tested parameters detected (e.g., Hemoglobin, Vitamin D3, B12, TSH, Glucose, Lipid Profile).
+        ### 🩺 1. Extracted Lab Parameters & Biomarkers (Clinical View)
+        - List tested parameters detected (e.g., Hemoglobin, Vitamin D3, B12, TSH, Glucose, Lipid Profile, Liver/Kidney Function).
         - State patient observed values vs standard reference ranges.
 
         ### ⚠️ 2. Identified Deficiencies & Abnormal Findings
         - Highlight values that are Low, High, or Borderline.
-        - Explain clinical significance in simple terms.
+        - Explain clinical significance in simple, comforting terms.
 
         ### 👨‍⚕️ 3. Integrative Medical Specialist Referral
-        - Explicitly name recommended specialists across treatment streams (e.g., Endocrinologist, Cardiologist, Homeopathic Practitioner, or Ayurvedic Vaidya).
+        - Explicitly name recommended specialists (e.g., Medical Oncologist, Clinical Dietitian, Endocrinologist, Gastroenterologist, Ayurvedic Vaidya).
 
-        ### 🌿 4. Tridosha & Functional Health Correlation
-        - Correlate detected deficiencies with Ayurvedic Tridosha imbalances (Vata, Pitta, Kapha) if applicable.
+        ### 🌿 4. Functional & Constitutional Health Correlation
+        - Correlate detected deficiencies with body constitution or symptom severity if applicable.
 
-        ### 🥗 5. Targeted Precision Diet Plan
-        - **Foods to Consume:** Whole foods restoring biomarker levels & balancing health.
-        - **Foods to Avoid:** Items aggravating current clinical markers.
+        ### 🥗 5. Targeted Precision Diet & Symptom Management
+        - **Foods to Consume:** Nutrient-dense whole foods restoring biomarker levels.
+        - **Foods to Avoid:** Items aggravating current symptoms or clinical markers.
 
         ### 🔗 6. Clinical & Research References
         - [World Health Organization (WHO) Guidelines](https://www.who.int/health-topics/nutrition)
         - [ICMR - National Institute of Nutrition (NIN)](https://www.nin.res.in/)
-        - [NIH National Library of Medicine (PubMed)](https://pubmed.ncbi.nlm.nih.gov/)
+        - [Indian Council of Medical Research (ICMR) Oncology Guidelines](https://main.icmr.nic.in/)
         """
 
         response = client.models.generate_content(
@@ -118,36 +118,50 @@ async def generate_diet_plan(data: BiometricsInput):
         tdee = bmr * multipliers.get(data.activity.lower(), 1.55)
 
         prompt = f"""
-        Act as an integrative clinical nutritionist expert in Modern Allopathic Nutrition, Homeopathy, and Ayurvedic Principles.
-        Generate a 1-day integrative meal plan for a {data.age}-year-old {data.gender} (Height: {data.height} cm, Weight: {data.weight} kg, BMR: {round(bmr)} kcal, TDEE: {round(tdee)} kcal).
+        Act as an expert clinical oncology nutritionist specializing in Indian dietary patterns (Veg, Non-Veg, Vegan, Eggetarian).
+        Generate a 1-day therapeutic, symptom-management meal plan for a {data.age}-year-old {data.gender} (Height: {data.height} cm, Weight: {data.weight} kg, BMR: {round(bmr)} kcal, TDEE: {round(tdee)} kcal).
 
-        CRITICAL MULTI-CONDITION & DIETARY CONSTRAINTS:
-        - **Selected Clinical Conditions / Diseases:** STRICTLY TAILOR FOR ALL SELECTED CONDITIONS: **{data.disease}**.
-          * You MUST harmonize dietary requirements across ALL selected conditions simultaneously (e.g., if both Diabetes AND Hypertension are selected, combine low Glycemic Index foods with Low Sodium/DASH guidelines; if Gout is selected, strictly restrict purines).
-        - **Ayurvedic Prakriti / Dosha Target:** **{data.dosha}** (Ignore if N/A).
+        CRITICAL CLINICAL & ONCOLOGY CONSTRAINTS:
+        - **Selected Conditions / Cancers:** **{data.disease}**.
+          * Apply specific clinical nutrition rules for selected cancer types using Indian foods tailored to diet preference ({data.diet_type}):
+            - **Breast Cancer:** Maintain lean muscle mass & manage appetite/treatment weight changes (e.g., Dal, Paneer, Tofu, Eggs, Fish/Chicken if Non-Veg, Soft Vegetables, Roti).
+            - **Lung Cancer:** Address appetite loss, fatigue, & weight loss (e.g., Moong Dal Khichdi, Curd/Yogurt, Eggs, Soft Paneer, Protein Soups).
+            - **Colorectal Cancer:** Adapt fiber & texture to bowel symptoms (e.g., White Rice, Soft Dal, Steamed Vegetables, Ripe Bananas; modify insoluble vs soluble fiber).
+            - **Stomach Cancer:** Manage early fullness & small stomach capacity (e.g., Frequent small portions of Khichdi, Soft Idli, Curd, Protein Broths/Soups).
+            - **Oral & Throat Cancer:** Manage chewing, swallowing difficulties, dry mouth, & sores (e.g., Blended Khichdi, Smooth Dal, Mashed Veggies, Nutrient Smoothies, Scrambled Eggs).
+            - **Pancreatic Cancer:** Support poor digestion, weight loss, & fat intolerance (e.g., Small high-protein meals, low-to-moderate adjusted fats, cooked easy-to-digest foods).
+            - **Liver Cancer:** Consider liver function, fluid retention, & protein/sodium balance (e.g., Individually balanced protein, controlled sodium khichdi/soup).
+            - **Prostate Cancer:** Support muscle & bone health during hormone therapy (e.g., Dal, Soy/Tofu, Beans, Dairy if tolerated, Cruciferous Vegetables, Whole Grains).
+            - **Ovarian Cancer:** Manage abdominal bloating, early fullness, & nausea (e.g., Small frequent meals, Soft Rice, Eggs/Tofu, Clear Warm Soups).
+            - **Leukaemia / Lymphoma:** Prevent neutropenic infection risks & manage fatigue (e.g., Freshly prepared, thoroughly cooked hygiene-safe meals, well-cooked Dal, Eggs, Meat if Non-Veg).
+
         - **Dietary Preference:** STRICTLY **{data.diet_type}**.
-        - **Allergies & Sensitivities:** STRICTLY EXCLUDE **{data.allergies}**.
+          * Veg: Dal, Paneer, Soy, Tofu, Dairy, Legumes.
+          * Non-Veg: Well-cooked Fish, Chicken, Eggs, Dal, Paneer.
+          * Vegan: Tofu, Soy, Dal, Legumes, Plant Milk, Nuts/Seeds (No Dairy/Eggs/Meat).
+          * Eggetarian: Eggs, Dal, Paneer, Tofu, Legumes (No Meat/Fish).
+        - **Allergies & Restrictions:** EXCLUDE **{data.allergies}**.
+        - **Ayurvedic Prakriti:** **{data.dosha}** (Ignore if N/A).
 
         Structure in clear Markdown:
-        ### 🩺 Multi-Condition Therapeutic Meal Plan
-        **Selected Conditions:** {data.disease} | **Diet Pattern:** {data.diet_type} | **Exclusions:** {data.allergies}
+        ### 🩺 Clinical Oncology & Therapeutic Meal Plan
+        **Selected Conditions/Cancers:** {data.disease} | **Diet Pattern:** {data.diet_type} | **Exclusions:** {data.allergies}
 
         - **Breakfast**
+        - **Mid-Morning Snack**
         - **Lunch**
-        - **Snack**
+        - **Evening Snack**
         - **Dinner**
-        Include estimated calories and macro breakdowns (Protein, Carbs, Fats) for each meal.
+        Include estimated calories, macronutrient breakdown (Protein, Carbs, Fats), and food texture/consistency notes.
 
-        ### ⚠️ Clinical Harmony & Safety Verification
-        - Explicitly detail how this meal plan addresses EACH of the selected conditions (**{data.disease}**) safely without cross-interfering.
+        ### ⚠️ Symptom & Food Safety Guidelines
+        - Provide practical Indian meal prep tips for managing nausea, taste changes, early fullness, or neutropenic food safety.
         - Confirm strict exclusion of **{data.allergies}**.
 
-        ### 📚 Scientific & Reference Links
-        Provide direct, clickable Markdown hyperlinked sources:
-        - [WHO Healthy Diet Guidelines](https://www.who.int/news-room/fact-sheets/detail/healthy-diet)
+        ### 📚 Clinical References
+        - [ICMR Guidelines for Cancer Management](https://main.icmr.nic.in/)
+        - [WHO Healthy Diet & Cancer Prevention](https://www.who.int/news-room/fact-sheets/detail/healthy-diet)
         - [ICMR-NIN Dietary Guidelines for Indians](https://www.nin.res.in/dietaryguidelines/index.html)
-        - [Harvard T.H. Chan School of Public Health - Nutrition Source](https://www.hsph.harvard.edu/nutritionsource/)
-        - [USDA FoodData Central](https://fdc.nal.usda.gov/)
         """
 
         response = client.models.generate_content(
